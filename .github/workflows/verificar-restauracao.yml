@@ -1,0 +1,51 @@
+name: Verificar restauracao de producao
+on:
+  push:
+    branches: [verificacao/restauracao]
+permissions:
+  contents: read
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Preparar navegador de verificacao
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+      - name: Confirmar loja restaurada por acesso independente
+        run: |
+          mkdir evidencias
+          node <<'JS'
+          const fs=require('fs');
+          const {chromium}=require('playwright');
+          (async()=>{
+            const browser=await chromium.launch({headless:true});
+            const page=await browser.newPage({viewport:{width:1440,height:950}});
+            const errors=[]; page.on('pageerror',e=>errors.push(e.message));
+            await page.goto('https://gmmourafag.github.io/trabalho-rollback/',{waitUntil:'networkidle'});
+            await page.locator('#grade .card').nth(11).waitFor();
+            for(const img of await page.locator('#grade img').all()) await img.scrollIntoViewIfNeeded();
+            await page.waitForFunction(()=>[...document.querySelectorAll('#grade img')].every(i=>i.complete&&i.naturalWidth>0));
+            const data=await page.evaluate(async()=>({
+              ts:new Date().toISOString(),url:location.href,rodape:document.querySelector('#versao').textContent,
+              contagem:document.querySelector('#contagem').textContent,
+              capas:[...document.querySelectorAll('#grade img')].filter(i=>i.complete&&i.naturalWidth>0).length,
+              build:await(await fetch('build-info.json',{cache:'no-store'})).json(),
+              config:await(await fetch('config/app-config.json',{cache:'no-store'})).json()
+            }));
+            data.errors=errors;
+            fs.writeFileSync('evidencias/restauracao-remota.json',JSON.stringify(data,null,2));
+            if(data.config.versao!=='1.0.0'||data.build.ref!=='v1.0.0'||data.capas!==12||errors.length) throw Error('Restauracao nao confirmada');
+            await page.screenshot({path:'evidencias/P7_loja_restaurada_remota.png',fullPage:true});
+            console.log(JSON.stringify(data,null,2));
+            await browser.close();
+          })().catch(e=>{console.error(e);process.exit(1)});
+          JS
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: restauracao-producao
+          path: evidencias/
