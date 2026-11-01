@@ -1,10 +1,10 @@
 {
   "nomeLoja": "Retrô 128",
-  "versao": "2.0.0",
+  "versao": "2.0.1",
   "ambiente": "producao",
   "moeda": "BRL",
   "catalogoUrl": "data/catalogo.json",
-  "pastaCapas": "assets/capas/",
+  "pastaCapas": "img/capas/",
   "freteGratisAcima": 199.9,
   "blackFriday": {
     "ativa": true,
