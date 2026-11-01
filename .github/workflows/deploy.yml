@@ -34,8 +34,24 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.versao || github.sha }}
+          path: site
+          persist-credentials: false
+
+      # O validador vem do workflow atual, mesmo ao republicar uma tag antiga.
+      - name: Baixar ferramenta de validacao atual
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: ferramentas-ci
+          sparse-checkout: scripts/validar_release.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Validar caminhos das capas antes de empacotar
+        run: python3 ferramentas-ci/scripts/validar_release.py site
 
       - name: Carimbar a versão publicada (build-info.json)
+        working-directory: site
         env:
           REF_PUBLICADA: ${{ inputs.versao || github.ref_name }}
           EVENTO: ${{ github.event_name }}
@@ -54,7 +70,7 @@ jobs:
       - name: Empacotar o site
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: site
 
       - name: Publicar
         id: publicacao
